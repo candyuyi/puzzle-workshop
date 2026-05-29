@@ -369,10 +369,10 @@
 </div>
 
 <script>
-    // ========== 使用你最新的 Public Bin ==========
-    const BIN_ID = "6a19cd78ddf5aa59f7756ccd";   // 最新的 Bin ID
-    const MASTER_KEY = "$2a$10$t0jKJJuys0R9HPKqHJo7.jc9pGhrQnk6bgeJayZiHoxNVbIrph6u";  // 写入需要 Key
-    // ============================================
+    // ========== Supabase 配置 ==========
+    const SUPABASE_URL = "https://dppogfleedepekgedvspj.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwcG9nZmxlZWRlcGVrZ2VkdnNwaiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzQ4NTQ0OTYxLCJleHAiOjIwNjQxMjA5NjF9";
+    // ====================================
 
     let currentLang = "zh";
     const langToggle = document.getElementById("langToggle");
@@ -387,25 +387,28 @@
     let currentMode = "solo";
     let currentSize = 3;
 
-    // ==================== JSONBin 存储函数 ====================
+    // ==================== Supabase 存储函数 ====================
     async function savePuzzleToCloud(code, puzzleData) {
         try {
-            // 读取现有数据
-            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { "X-Master-Key": MASTER_KEY }
-            });
-            const data = await res.json();
-            const allPuzzles = data.record?.puzzles || {};
-            allPuzzles[code] = puzzleData;
-            // 保存
-            await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                method: "PUT",
-                headers: { 
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/puzzles`, {
+                method: "POST",
+                headers: {
                     "Content-Type": "application/json",
-                    "X-Master-Key": MASTER_KEY
+                    "apikey": SUPABASE_ANON_KEY,
+                    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
                 },
-                body: JSON.stringify({ puzzles: allPuzzles })
+                body: JSON.stringify({
+                    code: code,
+                    image_url: puzzleData.imageUrl,
+                    size: puzzleData.size
+                })
             });
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("保存失败:", response.status, errorText);
+                alert(currentLang === "zh" ? `保存失败: ${response.status}` : `Save failed: ${response.status}`);
+                return false;
+            }
             return true;
         } catch (error) {
             console.error("保存失败:", error);
@@ -416,11 +419,25 @@
     
     async function loadPuzzleFromCloud(code) {
         try {
-            // Public bin 读取不需要 Key
-            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`);
-            const data = await res.json();
-            console.log("读取数据:", data);
-            return data.record?.puzzles?.[code] || null;
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/puzzles?code=eq.${code}&select=*`, {
+                headers: {
+                    "apikey": SUPABASE_ANON_KEY,
+                    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+                }
+            });
+            if (!response.ok) {
+                console.error("读取失败:", response.status);
+                alert(currentLang === "zh" ? `读取失败: ${response.status}` : `Load failed: ${response.status}`);
+                return null;
+            }
+            const data = await response.json();
+            if (data && data.length > 0) {
+                return {
+                    imageUrl: data[0].image_url,
+                    size: data[0].size
+                };
+            }
+            return null;
         } catch (error) {
             console.error("加载失败:", error);
             alert(currentLang === "zh" ? "加载失败，请检查网络" : "Load failed");
