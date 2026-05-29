@@ -528,7 +528,7 @@
     
     function initSoloDefault() {
         const canvas = document.createElement("canvas");
-        canvas.width = 400; canvas.height = 400;
+        canvas.width = 250; canvas.height = 250;
         const ctx = canvas.getContext("2d");
         const grad = ctx.createLinearGradient(0,0,600,600);
         grad.addColorStop(0,"#C06C84"); grad.addColorStop(0.5,"#6C5B7B"); grad.addColorStop(1,"#355C7D");
@@ -568,7 +568,7 @@
         const img = new Image();
         img.onload = async () => {
             ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, 800, 800);
-            const puzzleUrl = canvas.toDataURL();
+            const puzzleUrl = canvas.toDataURL("image/jpeg", 0.5);
             let code = prompt(currentLang === "zh" ? "输入邀请码（4-20个字符，字母数字）：" : "Enter invite code (4-20 chars):", "AURORA");
             if(!code) code = "AURORA";
             code = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
