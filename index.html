@@ -242,6 +242,11 @@
             color: #90a3b5;
             margin-top: 20px;
         }
+        .loading {
+            text-align: center;
+            color: #ffb347;
+            padding: 20px;
+        }
         [data-lang="en"] .lang-zh { display: none; }
         [data-lang="zh"] .lang-en { display: none; }
         @media (max-width: 700px) {
@@ -317,6 +322,7 @@
             </div>
         </div>
         <div id="solverPuzzleArea" style="display: none;">
+            <div class="loading" id="solverLoading" style="display: none;">加载中...</div>
             <div class="puzzle-grid" id="solverPuzzleGrid" style="grid-template-columns: repeat(3, 1fr);"></div>
             <div class="info-panel">
                 <span>🔁 <span id="solverSteps">0</span> <span class="lang-zh">步</span><span class="lang-en">moves</span></span>
@@ -363,6 +369,11 @@
 </div>
 
 <script>
+    // ========== JSONBin 配置（已填好） ==========
+    const BIN_ID = "6a19c119ddf5aa59f7753b8a";
+    const API_KEY = "$2a$10$t0jKJJuys0R9HPKqHJo7.jc9pGhrQnk6bgeJayZiHoxNVbIrph6u";
+    // =================================================
+    
     // ---------- 语言 ----------
     let currentLang = "zh";
     const langToggle = document.getElementById("langToggle");
@@ -378,8 +389,45 @@
     let currentMode = "solo";
     let currentSize = 3;
     
-    let savedDuoPuzzles = {};
-
+    // ==================== JSONBin 云存储函数 ====================
+    async function savePuzzleToCloud(code, puzzleData) {
+        try {
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { "X-Master-Key": API_KEY }
+            });
+            const data = await res.json();
+            const allPuzzles = data.record?.puzzles || {};
+            allPuzzles[code] = puzzleData;
+            await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: "PUT",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "X-Master-Key": API_KEY
+                },
+                body: JSON.stringify({ puzzles: allPuzzles })
+            });
+            return true;
+        } catch (error) {
+            console.error("保存失败:", error);
+            alert(currentLang === "zh" ? "保存失败，请检查网络" : "Save failed");
+            return false;
+        }
+    }
+    
+    async function loadPuzzleFromCloud(code) {
+        try {
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { "X-Master-Key": API_KEY }
+            });
+            const data = await res.json();
+            return data.record?.puzzles?.[code] || null;
+        } catch (error) {
+            console.error("加载失败:", error);
+            alert(currentLang === "zh" ? "加载失败，请检查网络" : "Load failed");
+            return null;
+        }
+    }
+    
     // ==================== 单人模式 ====================
     let soloTiles = [], soloEmptyPos = 0, soloSteps = 0, soloSeconds = 0, soloGameFinished = false, soloTimerInterval = null, soloPuzzleImageUrl = null;
     
@@ -495,7 +543,7 @@
         if(box) { box.style.left = duoSetterCropRect.x + "px"; box.style.top = duoSetterCropRect.y + "px"; box.style.width = duoSetterCropRect.w + "px"; box.style.height = duoSetterCropRect.h + "px"; }
     }
     
-    function generateDuoPuzzle() {
+    async function generateDuoPuzzle() {
         if(!duoSetterImageFile) return;
         const canvas = document.createElement("canvas");
         canvas.width = 800; canvas.height = 800;
@@ -505,19 +553,22 @@
         const srcX = duoSetterCropRect.x * scaleX, srcY = duoSetterCropRect.y * scaleY;
         const srcW = duoSetterCropRect.w * scaleX, srcH = duoSetterCropRect.h * scaleY;
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
             ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, 800, 800);
             const puzzleUrl = canvas.toDataURL();
             let code = prompt(currentLang === "zh" ? "输入邀请码（4-20个字符，字母数字）：" : "Enter invite code (4-20 chars):", "AURORA");
             if(!code) code = "AURORA";
             code = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
             if(code.length < 1) code = "AURORA";
-            savedDuoPuzzles[code] = { imageUrl: puzzleUrl, size: currentSize };
-            document.getElementById("generatedCode").innerText = code;
-            document.getElementById("inviteResultArea").style.display = "block";
-            const previewGrid = document.getElementById("previewPuzzleGrid");
-            const shuffled = shuffleFromSolved(currentSize, 200);
-            renderPuzzleCommon(previewGrid, shuffled.tiles, shuffled.emptyPos, false, puzzleUrl, currentSize);
+            
+            const success = await savePuzzleToCloud(code, { imageUrl: puzzleUrl, size: currentSize });
+            if(success) {
+                document.getElementById("generatedCode").innerText = code;
+                document.getElementById("inviteResultArea").style.display = "block";
+                const previewGrid = document.getElementById("previewPuzzleGrid");
+                const shuffled = shuffleFromSolved(currentSize, 200);
+                renderPuzzleCommon(previewGrid, shuffled.tiles, shuffled.emptyPos, false, puzzleUrl, currentSize);
+            }
         };
         img.src = URL.createObjectURL(duoSetterImageFile);
     }
@@ -526,10 +577,19 @@
     let duoSolveTiles = [], duoSolveEmptyPos = 0, duoSolveSteps = 0, duoSolveSeconds = 0, duoSolveGameFinished = false, duoSolveTimerInterval = null, duoSolvePuzzleUrl = null;
     let duoSolveTimerStarted = false;
     
-    function loadDuoPuzzle(code) {
+    async function loadDuoPuzzle(code) {
+        const loadingEl = document.getElementById("solverLoading");
+        if(loadingEl) loadingEl.style.display = "block";
+        
         code = code.toUpperCase();
-        const puzzle = savedDuoPuzzles[code];
-        if(!puzzle) { alert(currentLang === "zh" ? "邀请码无效！" : "Invalid code!"); return; }
+        const puzzle = await loadPuzzleFromCloud(code);
+        
+        if(loadingEl) loadingEl.style.display = "none";
+        
+        if(!puzzle) { 
+            alert(currentLang === "zh" ? "邀请码无效！" : "Invalid code!"); 
+            return; 
+        }
         duoSolvePuzzleUrl = puzzle.imageUrl;
         const shuffled = shuffleFromSolved(puzzle.size, 200);
         duoSolveTiles = shuffled.tiles;
@@ -605,18 +665,51 @@
                 duoSetterImgDisplayH = imgEl.clientHeight;
                 let initW = Math.min(duoSetterImgDisplayW * 0.6, duoSetterImgDisplayH * 0.6);
                 initW = Math.max(80, initW);
-                duoSetterCropRect = { x: (duoSetterImgDisplayW - initW)/2, y: (duoSetterImgDisplayH - initW)/2, w: initW, h: initW };
+                duoSetterCropRect = {
+                    x: (duoSetterImgDisplayW - initW) / 2,
+                    y: (duoSetterImgDisplayH - initW) / 2,
+                    w: initW,
+                    h: initW
+                };
                 updateDuoSetterCropUI();
                 document.getElementById("generateDuoBtn").disabled = false;
                 const box = document.getElementById("cropBox");
                 const handle = box.querySelector(".crop-handle");
                 let dragStart = { x: 0, y: 0 }, startRect = { x: 0, y: 0, w: 0 };
-                box.onmousedown = (e) => { if(e.target === box) { dragStart.x = e.clientX; dragStart.y = e.clientY; startRect = { ...duoSetterCropRect }; document.onmousemove = (me) => { let dx = me.clientX - dragStart.x, dy = me.clientY - dragStart.y; duoSetterCropRect.x = Math.max(0, Math.min(startRect.x + dx, duoSetterImgDisplayW - duoSetterCropRect.w)); duoSetterCropRect.y = Math.max(0, Math.min(startRect.y + dy, duoSetterImgDisplayH - duoSetterCropRect.h)); updateDuoSetterCropUI(); }; document.onmouseup = () => { document.onmousemove = null; }; } };
-                handle.onmousedown = (e) => { e.stopPropagation(); dragStart.x = e.clientX; dragStart.y = e.clientY; startRect = { ...duoSetterCropRect }; document.onmousemove = (me) => { let dw = me.clientX - dragStart.x; let newW = Math.max(50, Math.min(startRect.w + dw, duoSetterImgDisplayW - duoSetterCropRect.x)); duoSetterCropRect.w = newW; duoSetterCropRect.h = newW; updateDuoSetterCropUI(); }; document.onmouseup = () => { document.onmousemove = null; }; };
+                box.onmousedown = (e) => {
+                    if(e.target === box) {
+                        dragStart.x = e.clientX;
+                        dragStart.y = e.clientY;
+                        startRect = { ...duoSetterCropRect };
+                        document.onmousemove = (me) => {
+                            let dx = me.clientX - dragStart.x;
+                            let dy = me.clientY - dragStart.y;
+                            duoSetterCropRect.x = Math.max(0, Math.min(startRect.x + dx, duoSetterImgDisplayW - duoSetterCropRect.w));
+                            duoSetterCropRect.y = Math.max(0, Math.min(startRect.y + dy, duoSetterImgDisplayH - duoSetterCropRect.h));
+                            updateDuoSetterCropUI();
+                        };
+                        document.onmouseup = () => { document.onmousemove = null; };
+                    }
+                };
+                handle.onmousedown = (e) => {
+                    e.stopPropagation();
+                    dragStart.x = e.clientX;
+                    dragStart.y = e.clientY;
+                    startRect = { ...duoSetterCropRect };
+                    document.onmousemove = (me) => {
+                        let dw = me.clientX - dragStart.x;
+                        let newW = Math.max(50, Math.min(startRect.w + dw, duoSetterImgDisplayW - duoSetterCropRect.x));
+                        duoSetterCropRect.w = newW;
+                        duoSetterCropRect.h = newW;
+                        updateDuoSetterCropUI();
+                    };
+                    document.onmouseup = () => { document.onmousemove = null; };
+                };
             };
         };
         input.click();
     });
+    
     document.getElementById("generateDuoBtn").addEventListener("click", generateDuoPuzzle);
     document.getElementById("copyCodeBtn").addEventListener("click", () => {
         const code = document.getElementById("generatedCode").innerText;
@@ -662,7 +755,6 @@
         input.click();
     });
     
-    // 模式切换
     function switchMode(mode) {
         currentMode = mode;
         document.getElementById("soloArea").style.display = mode === "solo" ? "block" : "none";
