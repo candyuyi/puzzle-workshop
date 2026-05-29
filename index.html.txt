@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Puzzle Workshop · 拼图工坊</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(145deg, #1a2a3a, #0f1722);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+        .main-card {
+            max-width: 1300px;
+            width: 100%;
+            background: rgba(20, 30, 45, 0.7);
+            backdrop-filter: blur(12px);
+            border-radius: 56px;
+            padding: 24px 22px 32px;
+            border: 1px solid rgba(255,210,150,0.4);
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            margin: 0 0 6px;
+            background: linear-gradient(135deg, #FFE6CC, #F7BC84);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .sub {
+            text-align: center;
+            color: #bdd4e8;
+            font-size: 0.7rem;
+            margin-bottom: 20px;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .mode-group {
+            display: flex;
+            gap: 8px;
+            background: #0e1a24aa;
+            padding: 5px 12px;
+            border-radius: 40px;
+        }
+        .mode-btn {
+            background: #2e405a;
+            border: none;
+            padding: 5px 16px;
+            border-radius: 32px;
+            color: #ffefdb;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .mode-btn.active {
+            background: #ddb582;
+            color: #2a241e;
+        }
+        .size-group {
+            display: flex;
+            gap: 8px;
+            background: #0e1a24aa;
+            padding: 5px 12px;
+            border-radius: 40px;
+        }
+        .size-btn {
+            background: #2e405a;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 32px;
+            color: #ffefdb;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .size-btn.active {
+            background: #ddb582;
+            color: #2a241e;
+        }
+        .lang-btn {
+            background: #2e405a;
+            border: none;
+            padding: 5px 16px;
+            border-radius: 32px;
+            color: #ffefdb;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .two-columns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+        .col-left {
+            flex: 1.5;
+            min-width: 260px;
+        }
+        .col-right {
+            flex: 1;
+            min-width: 260px;
+        }
+        .image-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            background: #0e1a24;
+            border-radius: 28px;
+            overflow: hidden;
+            border: 1px solid #e7bc7e;
+        }
+        .original-img {
+            width: 100%;
+            display: block;
+            cursor: crosshair;
+        }
+        .crop-box {
+            position: absolute;
+            border: 3px solid #ffb347;
+            background: rgba(255, 180, 70, 0.2);
+            cursor: move;
+            box-shadow: 0 0 0 999px rgba(0,0,0,0.5);
+        }
+        .crop-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #ffb347;
+            border-radius: 50%;
+            bottom: -8px;
+            right: -8px;
+            cursor: nw-resize;
+            border: 2px solid white;
+        }
+        .puzzle-grid {
+            display: grid;
+            background: #2d2b26;
+            border-radius: 28px;
+            overflow: hidden;
+            gap: 2px;
+            border: 2px solid #e7bc7e;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            aspect-ratio: 1 / 1;
+        }
+        .tile {
+            background-repeat: no-repeat;
+            cursor: pointer;
+            transition: 0.08s;
+            width: 100%;
+            height: 100%;
+        }
+        .tile:active { transform: scale(0.96); }
+        .tile.empty {
+            background: #1e2a2f !important;
+            box-shadow: inset 0 0 0 1px #3a4a5a;
+        }
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            background: #1b2938cc;
+            border-radius: 48px;
+            padding: 8px 22px;
+            margin: 15px 0 10px;
+            color: #FFE2C2;
+            font-weight: 600;
+        }
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin: 15px 0 5px;
+        }
+        button {
+            background: #ddb582;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #2a241e;
+        }
+        button:active { transform: scale(0.96); }
+        .upload-btn { background: #5b7a9a; color: white; }
+        .invite-card {
+            background: #0e1a24;
+            border-radius: 28px;
+            padding: 16px 20px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        .invite-code-display {
+            font-family: monospace;
+            font-size: 1.6rem;
+            font-weight: bold;
+            letter-spacing: 4px;
+            color: #ffb347;
+            background: #1a2a3a;
+            display: inline-block;
+            padding: 8px 24px;
+            border-radius: 60px;
+            margin: 10px 0;
+        }
+        .invite-input {
+            background: #1e2a3a;
+            border: 1px solid #ffb347;
+            color: #ffefdb;
+            padding: 10px 16px;
+            border-radius: 40px;
+            text-align: center;
+            font-size: 1.2rem;
+            width: 200px;
+            font-family: monospace;
+        }
+        .win-message {
+            text-align: center;
+            background: #a7d0b0cc;
+            color: #1f3b2c;
+            padding: 10px;
+            border-radius: 80px;
+            margin-top: 12px;
+            font-weight: bold;
+        }
+        footer {
+            font-size: 0.6rem;
+            text-align: center;
+            color: #90a3b5;
+            margin-top: 20px;
+        }
+        [data-lang="en"] .lang-zh { display: none; }
+        [data-lang="zh"] .lang-en { display: none; }
+        @media (max-width: 700px) {
+            .two-columns { flex-direction: column; }
+        }
+    </style>
+</head>
+<body data-lang="zh">
+<div class="main-card">
+    <div class="toolbar">
+        <div class="mode-group">
+            <button class="mode-btn active" data-mode="solo">🎮 <span class="lang-zh">单人模式</span><span class="lang-en">Solo</span></button>
+            <button class="mode-btn" data-mode="duo">👥 <span class="lang-zh">双人模式</span><span class="lang-en">Duo</span></button>
+        </div>
+        <div class="size-group">
+            <span class="lang-zh" style="font-size:0.7rem;">难度：</span>
+            <span class="lang-en" style="font-size:0.7rem;">Size：</span>
+            <button class="size-btn" data-size="2">2x2</button>
+            <button class="size-btn active" data-size="3">3x3</button>
+            <button class="size-btn" data-size="4">4x4</button>
+            <button class="size-btn" data-size="5">5x5</button>
+        </div>
+        <button class="lang-btn" id="langToggle">English</button>
+    </div>
+    <h1>✨ Puzzle Workshop ✨</h1>
+    <div class="sub lang-zh">🎯 单人：自己玩 | 👥 双人：出题/解题 + 自定义邀请码</div>
+    <div class="sub lang-en">🎯 Solo: play alone | 👥 Duo: create/share puzzles with custom code</div>
+
+    <!-- 双人模式：出题区域 -->
+    <div id="duoSetterArea" style="display: none;">
+        <div class="two-columns">
+            <div class="col-left">
+                <div class="image-container" id="imageContainer" style="display: none;">
+                    <img id="originalImg" class="original-img" alt="original">
+                    <div id="cropBox" class="crop-box"><div class="crop-handle"></div></div>
+                </div>
+                <div id="noImageHint" class="lang-zh" style="color:#bbd4f0; text-align:center; padding:40px;">📸 点击下方按钮上传图片</div>
+                <div id="noImageHintEn" class="lang-en" style="color:#bbd4f0; text-align:center; padding:40px; display:none;">📸 Upload an image</div>
+                <div class="btn-group">
+                    <button class="upload-btn" id="uploadImgBtn">📷 <span class="lang-zh">上传图片</span><span class="lang-en">Upload</span></button>
+                </div>
+            </div>
+            <div class="col-right">
+                <div class="puzzle-grid" id="previewPuzzleGrid" style="grid-template-columns: repeat(3, 1fr);"></div>
+                <div style="margin-top: 12px; text-align: center;">
+                    <button id="generateDuoBtn" disabled><span class="lang-zh">🎯 生成拼图 + 邀请码</span><span class="lang-en">🎯 Generate & Get Code</span></button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="invite-card" id="inviteResultArea" style="display: none;">
+            <div class="lang-zh">🔐 你的邀请码（发给对方）</div>
+            <div class="lang-en">🔐 Your invite code (share with partner)</div>
+            <div class="invite-code-display" id="generatedCode">AURORA</div>
+            <div style="margin-top: 8px;">
+                <button id="copyCodeBtn">📋 <span class="lang-zh">复制邀请码</span><span class="lang-en">Copy</span></button>
+            </div>
+            <div style="margin-top: 12px; font-size:0.7rem; color:#aaa;">
+                <span class="lang-zh">💡 把邀请码发给对方，对方在双人模式点击「解题」即可</span>
+                <span class="lang-en">💡 Share the code with your partner</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 双人模式：解题区域 -->
+    <div id="duoSolverArea" style="display: none;">
+        <div class="invite-card">
+            <div class="lang-zh">🔐 输入对方给你的邀请码</div>
+            <div class="lang-en">🔐 Enter the invite code from your partner</div>
+            <input type="text" id="solverCodeInput" class="invite-input" placeholder="例如 AURORA" maxlength="20">
+            <div style="margin-top: 12px;">
+                <button id="loadDuoPuzzleBtn"><span class="lang-zh">加载拼图</span><span class="lang-en">Load Puzzle</span></button>
+            </div>
+        </div>
+        <div id="solverPuzzleArea" style="display: none;">
+            <div class="puzzle-grid" id="solverPuzzleGrid" style="grid-template-columns: repeat(3, 1fr);"></div>
+            <div class="info-panel">
+                <span>🔁 <span id="solverSteps">0</span> <span class="lang-zh">步</span><span class="lang-en">moves</span></span>
+                <span>⏱️ <span id="solverTimer">0</span> <span class="lang-zh">秒</span><span class="lang-en">sec</span></span>
+            </div>
+            <div class="btn-group">
+                <button id="solverShuffleBtn"><span class="lang-zh">🔄 重新打乱</span><span class="lang-en">🔄 Shuffle</span></button>
+            </div>
+            <div id="solverWinMessage" style="display: none;" class="win-message">🎉 <span class="lang-zh">完美复原！🎉</span><span class="lang-en">Perfect! 🎉</span></div>
+        </div>
+    </div>
+
+    <!-- 单人模式区域 -->
+    <div id="soloArea">
+        <div class="two-columns">
+            <div class="col-left">
+                <div class="image-container" id="soloImageContainer" style="display: none;">
+                    <img id="soloOriginalImg" class="original-img" alt="original">
+                    <div id="soloCropBox" class="crop-box"><div class="crop-handle"></div></div>
+                </div>
+                <div id="soloNoImageHint" class="lang-zh" style="color:#bbd4f0; text-align:center; padding:40px;">📸 点击下方按钮上传图片（可选）</div>
+                <div id="soloNoImageHintEn" class="lang-en" style="color:#bbd4f0; text-align:center; padding:40px; display:none;">📸 Upload an image (optional)</div>
+                <div class="btn-group">
+                    <button class="upload-btn" id="soloUploadBtn">📷 <span class="lang-zh">上传图片</span><span class="lang-en">Upload</span></button>
+                    <button id="soloResetBtn"><span class="lang-zh">🔄 默认拼图</span><span class="lang-en">Default</span></button>
+                </div>
+            </div>
+            <div class="col-right">
+                <div class="puzzle-grid" id="soloPuzzleGrid" style="grid-template-columns: repeat(3, 1fr);"></div>
+                <div class="info-panel">
+                    <span>🔁 <span id="soloSteps">0</span> <span class="lang-zh">步</span><span class="lang-en">moves</span></span>
+                    <span>⏱️ <span id="soloTimer">0</span> <span class="lang-zh">秒</span><span class="lang-en">sec</span></span>
+                </div>
+                <div class="btn-group">
+                    <button id="soloShuffleBtn"><span class="lang-zh">🔄 重新打乱</span><span class="lang-en">Shuffle</span></button>
+                </div>
+                <div id="soloWinMessage" style="display: none;" class="win-message">🎉 <span class="lang-zh">完美复原！🎉</span><span class="lang-en">Perfect! 🎉</span></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="lang-zh">💡 单人模式：随意上传图片玩 | 双人模式：出题→自定义邀请码→对方解题</footer>
+    <footer class="lang-en">💡 Solo: play with any image | Duo: create puzzle → share code → partner solves</footer>
+</div>
+
+<script>
+    // ---------- 语言 ----------
+    let currentLang = "zh";
+    const langToggle = document.getElementById("langToggle");
+    function setLanguage(lang) {
+        currentLang = lang;
+        document.body.setAttribute("data-lang", lang);
+        langToggle.innerText = lang === "zh" ? "English" : "中文";
+    }
+    langToggle.addEventListener("click", () => setLanguage(currentLang === "zh" ? "en" : "zh"));
+    setLanguage("zh");
+
+    // ---------- 全局变量 ----------
+    let currentMode = "solo";
+    let currentSize = 3;
+    
+    let savedDuoPuzzles = {};
+
+    // ==================== 单人模式 ====================
+    let soloTiles = [], soloEmptyPos = 0, soloSteps = 0, soloSeconds = 0, soloGameFinished = false, soloTimerInterval = null, soloPuzzleImageUrl = null;
+    
+    function getSolvedTiles(sizeVal) {
+        let arr = [];
+        let total = sizeVal * sizeVal;
+        for(let i = 0; i < total - 1; i++) arr.push(i);
+        arr.push(total - 1);
+        return arr;
+    }
+    
+    function shuffleFromSolved(sizeVal, moves = 250) {
+        let arr = [...getSolvedTiles(sizeVal)];
+        let emptyIdx = sizeVal * sizeVal - 1;
+        const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+        for(let step = 0; step < moves; step++) {
+            const row = Math.floor(emptyIdx / sizeVal);
+            const col = emptyIdx % sizeVal;
+            let neighbors = [];
+            for(let d of dirs) {
+                let nr = row + d[0], nc = col + d[1];
+                if(nr >= 0 && nr < sizeVal && nc >= 0 && nc < sizeVal) neighbors.push(nr * sizeVal + nc);
+            }
+            if(neighbors.length) {
+                let rand = neighbors[Math.floor(Math.random() * neighbors.length)];
+                [arr[emptyIdx], arr[rand]] = [arr[rand], arr[emptyIdx]];
+                emptyIdx = rand;
+            }
+        }
+        return { tiles: arr, emptyPos: emptyIdx };
+    }
+    
+    function renderPuzzleCommon(gridEl, tilesArr, emptyPosIdx, gameFinishedFlag, imageUrl, sizeVal) {
+        if(!imageUrl) return;
+        const total = sizeVal * sizeVal;
+        gridEl.style.gridTemplateColumns = `repeat(${sizeVal}, 1fr)`;
+        gridEl.innerHTML = "";
+        for(let i = 0; i < total; i++) {
+            const tileVal = tilesArr[i];
+            const isEmpty = (!gameFinishedFlag && tileVal === total - 1);
+            const div = document.createElement("div");
+            div.classList.add("tile");
+            if(isEmpty) {
+                div.classList.add("empty");
+                div.style.background = "#1e2a2f";
+            } else {
+                const row = Math.floor(tileVal / sizeVal);
+                const col = tileVal % sizeVal;
+                const bgX = (col * 100) / (sizeVal - 1);
+                const bgY = (row * 100) / (sizeVal - 1);
+                div.style.backgroundImage = `url('${imageUrl}')`;
+                div.style.backgroundSize = `${sizeVal * 100}% ${sizeVal * 100}%`;
+                div.style.backgroundPosition = `${bgX}% ${bgY}%`;
+            }
+            gridEl.appendChild(div);
+        }
+    }
+    
+    function soloOnTileClick(idx) {
+        if(soloGameFinished) return;
+        const sz = currentSize;
+        const clickRow = Math.floor(idx / sz), clickCol = idx % sz;
+        const emptyRow = Math.floor(soloEmptyPos / sz), emptyCol = soloEmptyPos % sz;
+        if(Math.abs(clickRow - emptyRow) + Math.abs(clickCol - emptyCol) !== 1) return;
+        [soloTiles[idx], soloTiles[soloEmptyPos]] = [soloTiles[soloEmptyPos], soloTiles[idx]];
+        soloEmptyPos = idx;
+        soloSteps++;
+        document.getElementById("soloSteps").innerText = soloSteps;
+        let victory = true;
+        for(let i = 0; i < sz*sz; i++) if(soloTiles[i] !== i) { victory = false; break; }
+        if(victory) { soloGameFinished = true; if(soloTimerInterval) clearInterval(soloTimerInterval); document.getElementById("soloWinMessage").style.display = "block"; }
+        renderPuzzleCommon(document.getElementById("soloPuzzleGrid"), soloTiles, soloEmptyPos, soloGameFinished, soloPuzzleImageUrl, currentSize);
+    }
+    
+    function soloShuffle() {
+        const shuffled = shuffleFromSolved(currentSize, 200);
+        soloTiles = shuffled.tiles;
+        soloEmptyPos = shuffled.emptyPos;
+        soloSteps = 0; soloSeconds = 0; soloGameFinished = false;
+        document.getElementById("soloSteps").innerText = "0";
+        document.getElementById("soloTimer").innerText = "0";
+        document.getElementById("soloWinMessage").style.display = "none";
+        renderPuzzleCommon(document.getElementById("soloPuzzleGrid"), soloTiles, soloEmptyPos, soloGameFinished, soloPuzzleImageUrl, currentSize);
+    }
+    
+    function initSoloDefault() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 600; canvas.height = 600;
+        const ctx = canvas.getContext("2d");
+        const grad = ctx.createLinearGradient(0,0,600,600);
+        grad.addColorStop(0,"#C06C84"); grad.addColorStop(0.5,"#6C5B7B"); grad.addColorStop(1,"#355C7D");
+        ctx.fillStyle=grad; ctx.fillRect(0,0,600,600);
+        ctx.fillStyle="#FFF5E6"; ctx.font="bold 36px 'Segoe UI'"; ctx.fillText("✨ PUZZLE", 180, 300);
+        soloPuzzleImageUrl = canvas.toDataURL();
+        const shuffled = shuffleFromSolved(3, 200);
+        soloTiles = shuffled.tiles;
+        soloEmptyPos = shuffled.emptyPos;
+        soloSteps = 0; soloSeconds = 0; soloGameFinished = false;
+        document.getElementById("soloSteps").innerText = "0";
+        document.getElementById("soloTimer").innerText = "0";
+        document.getElementById("soloWinMessage").style.display = "none";
+        renderPuzzleCommon(document.getElementById("soloPuzzleGrid"), soloTiles, soloEmptyPos, soloGameFinished, soloPuzzleImageUrl, 3);
+        if(soloTimerInterval) clearInterval(soloTimerInterval);
+        soloTimerInterval = setInterval(() => { if(!soloGameFinished) { soloSeconds++; document.getElementById("soloTimer").innerText = soloSeconds; } }, 1000);
+    }
+
+    // ==================== 双人出题 ====================
+    let duoSetterImageFile = null, duoSetterCropRect = { x: 0, y: 0, w: 100, h: 100 };
+    let duoSetterImgNaturalW=1, duoSetterImgNaturalH=1, duoSetterImgDisplayW=1, duoSetterImgDisplayH=1;
+    
+    function updateDuoSetterCropUI() {
+        const box = document.getElementById("cropBox");
+        if(box) { box.style.left = duoSetterCropRect.x + "px"; box.style.top = duoSetterCropRect.y + "px"; box.style.width = duoSetterCropRect.w + "px"; box.style.height = duoSetterCropRect.h + "px"; }
+    }
+    
+    function generateDuoPuzzle() {
+        if(!duoSetterImageFile) return;
+        const canvas = document.createElement("canvas");
+        canvas.width = 800; canvas.height = 800;
+        const ctx = canvas.getContext("2d");
+        const scaleX = duoSetterImgNaturalW / duoSetterImgDisplayW;
+        const scaleY = duoSetterImgNaturalH / duoSetterImgDisplayH;
+        const srcX = duoSetterCropRect.x * scaleX, srcY = duoSetterCropRect.y * scaleY;
+        const srcW = duoSetterCropRect.w * scaleX, srcH = duoSetterCropRect.h * scaleY;
+        const img = new Image();
+        img.onload = () => {
+            ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, 800, 800);
+            const puzzleUrl = canvas.toDataURL();
+            let code = prompt(currentLang === "zh" ? "输入邀请码（4-20个字符，字母数字）：" : "Enter invite code (4-20 chars):", "AURORA");
+            if(!code) code = "AURORA";
+            code = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+            if(code.length < 1) code = "AURORA";
+            savedDuoPuzzles[code] = { imageUrl: puzzleUrl, size: currentSize };
+            document.getElementById("generatedCode").innerText = code;
+            document.getElementById("inviteResultArea").style.display = "block";
+            const previewGrid = document.getElementById("previewPuzzleGrid");
+            const shuffled = shuffleFromSolved(currentSize, 200);
+            renderPuzzleCommon(previewGrid, shuffled.tiles, shuffled.emptyPos, false, puzzleUrl, currentSize);
+        };
+        img.src = URL.createObjectURL(duoSetterImageFile);
+    }
+    
+    // ==================== 双人解题 ====================
+    let duoSolveTiles = [], duoSolveEmptyPos = 0, duoSolveSteps = 0, duoSolveSeconds = 0, duoSolveGameFinished = false, duoSolveTimerInterval = null, duoSolvePuzzleUrl = null;
+    let duoSolveTimerStarted = false;
+    
+    function loadDuoPuzzle(code) {
+        code = code.toUpperCase();
+        const puzzle = savedDuoPuzzles[code];
+        if(!puzzle) { alert(currentLang === "zh" ? "邀请码无效！" : "Invalid code!"); return; }
+        duoSolvePuzzleUrl = puzzle.imageUrl;
+        const shuffled = shuffleFromSolved(puzzle.size, 200);
+        duoSolveTiles = shuffled.tiles;
+        duoSolveEmptyPos = shuffled.emptyPos;
+        duoSolveSteps = 0; duoSolveSeconds = 0; duoSolveGameFinished = false; duoSolveTimerStarted = false;
+        document.getElementById("solverSteps").innerText = "0";
+        document.getElementById("solverTimer").innerText = "0";
+        document.getElementById("solverWinMessage").style.display = "none";
+        if(duoSolveTimerInterval) clearInterval(duoSolveTimerInterval);
+        renderPuzzleCommon(document.getElementById("solverPuzzleGrid"), duoSolveTiles, duoSolveEmptyPos, duoSolveGameFinished, duoSolvePuzzleUrl, puzzle.size);
+        document.getElementById("solverPuzzleArea").style.display = "block";
+        currentSize = puzzle.size;
+        document.getElementById("solverPuzzleGrid").style.gridTemplateColumns = `repeat(${puzzle.size}, 1fr)`;
+    }
+    
+    function duoSolveOnTileClick(idx) {
+        if(duoSolveGameFinished) return;
+        if(!duoSolveTimerStarted) {
+            duoSolveTimerStarted = true;
+            duoSolveTimerInterval = setInterval(() => { if(!duoSolveGameFinished) { duoSolveSeconds++; document.getElementById("solverTimer").innerText = duoSolveSeconds; } }, 1000);
+        }
+        const sz = currentSize;
+        const clickRow = Math.floor(idx / sz), clickCol = idx % sz;
+        const emptyRow = Math.floor(duoSolveEmptyPos / sz), emptyCol = duoSolveEmptyPos % sz;
+        if(Math.abs(clickRow - emptyRow) + Math.abs(clickCol - emptyCol) !== 1) return;
+        [duoSolveTiles[idx], duoSolveTiles[duoSolveEmptyPos]] = [duoSolveTiles[duoSolveEmptyPos], duoSolveTiles[idx]];
+        duoSolveEmptyPos = idx;
+        duoSolveSteps++;
+        document.getElementById("solverSteps").innerText = duoSolveSteps;
+        let victory = true;
+        for(let i = 0; i < sz*sz; i++) if(duoSolveTiles[i] !== i) { victory = false; break; }
+        if(victory) { duoSolveGameFinished = true; if(duoSolveTimerInterval) clearInterval(duoSolveTimerInterval); document.getElementById("solverWinMessage").style.display = "block"; }
+        renderPuzzleCommon(document.getElementById("solverPuzzleGrid"), duoSolveTiles, duoSolveEmptyPos, duoSolveGameFinished, duoSolvePuzzleUrl, currentSize);
+    }
+    
+    function duoSolveShuffle() {
+        const sz = currentSize;
+        const shuffled = shuffleFromSolved(sz, 200);
+        duoSolveTiles = shuffled.tiles;
+        duoSolveEmptyPos = shuffled.emptyPos;
+        duoSolveSteps = 0; duoSolveSeconds = 0; duoSolveGameFinished = false; duoSolveTimerStarted = false;
+        document.getElementById("solverSteps").innerText = "0";
+        document.getElementById("solverTimer").innerText = "0";
+        document.getElementById("solverWinMessage").style.display = "none";
+        if(duoSolveTimerInterval) clearInterval(duoSolveTimerInterval);
+        renderPuzzleCommon(document.getElementById("solverPuzzleGrid"), duoSolveTiles, duoSolveEmptyPos, duoSolveGameFinished, duoSolvePuzzleUrl, currentSize);
+    }
+    
+    // ==================== 事件绑定 ====================
+    document.getElementById("soloPuzzleGrid").addEventListener("click", (e) => {
+        let idx = Array.from(e.currentTarget.children).indexOf(e.target);
+        if(idx >= 0) soloOnTileClick(idx);
+    });
+    document.getElementById("soloShuffleBtn").addEventListener("click", soloShuffle);
+    document.getElementById("soloResetBtn").addEventListener("click", () => initSoloDefault());
+    
+    document.getElementById("uploadImgBtn").addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.type = "file"; input.accept = "image/*";
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            duoSetterImageFile = file;
+            const url = URL.createObjectURL(file);
+            const imgEl = document.getElementById("originalImg");
+            imgEl.src = url;
+            document.getElementById("imageContainer").style.display = "block";
+            document.getElementById("noImageHint").style.display = "none";
+            imgEl.onload = () => {
+                duoSetterImgNaturalW = imgEl.naturalWidth;
+                duoSetterImgNaturalH = imgEl.naturalHeight;
+                duoSetterImgDisplayW = imgEl.clientWidth;
+                duoSetterImgDisplayH = imgEl.clientHeight;
+                let initW = Math.min(duoSetterImgDisplayW * 0.6, duoSetterImgDisplayH * 0.6);
+                initW = Math.max(80, initW);
+                duoSetterCropRect = { x: (duoSetterImgDisplayW - initW)/2, y: (duoSetterImgDisplayH - initW)/2, w: initW, h: initW };
+                updateDuoSetterCropUI();
+                document.getElementById("generateDuoBtn").disabled = false;
+                const box = document.getElementById("cropBox");
+                const handle = box.querySelector(".crop-handle");
+                let dragStart = { x: 0, y: 0 }, startRect = { x: 0, y: 0, w: 0 };
+                box.onmousedown = (e) => { if(e.target === box) { dragStart.x = e.clientX; dragStart.y = e.clientY; startRect = { ...duoSetterCropRect }; document.onmousemove = (me) => { let dx = me.clientX - dragStart.x, dy = me.clientY - dragStart.y; duoSetterCropRect.x = Math.max(0, Math.min(startRect.x + dx, duoSetterImgDisplayW - duoSetterCropRect.w)); duoSetterCropRect.y = Math.max(0, Math.min(startRect.y + dy, duoSetterImgDisplayH - duoSetterCropRect.h)); updateDuoSetterCropUI(); }; document.onmouseup = () => { document.onmousemove = null; }; } };
+                handle.onmousedown = (e) => { e.stopPropagation(); dragStart.x = e.clientX; dragStart.y = e.clientY; startRect = { ...duoSetterCropRect }; document.onmousemove = (me) => { let dw = me.clientX - dragStart.x; let newW = Math.max(50, Math.min(startRect.w + dw, duoSetterImgDisplayW - duoSetterCropRect.x)); duoSetterCropRect.w = newW; duoSetterCropRect.h = newW; updateDuoSetterCropUI(); }; document.onmouseup = () => { document.onmousemove = null; }; };
+            };
+        };
+        input.click();
+    });
+    document.getElementById("generateDuoBtn").addEventListener("click", generateDuoPuzzle);
+    document.getElementById("copyCodeBtn").addEventListener("click", () => {
+        const code = document.getElementById("generatedCode").innerText;
+        navigator.clipboard.writeText(code);
+        alert(currentLang === "zh" ? "邀请码已复制！" : "Code copied!");
+    });
+    document.getElementById("loadDuoPuzzleBtn").addEventListener("click", () => {
+        const code = document.getElementById("solverCodeInput").value;
+        loadDuoPuzzle(code);
+    });
+    document.getElementById("solverPuzzleGrid").addEventListener("click", (e) => {
+        let idx = Array.from(e.currentTarget.children).indexOf(e.target);
+        if(idx >= 0) duoSolveOnTileClick(idx);
+    });
+    document.getElementById("solverShuffleBtn").addEventListener("click", duoSolveShuffle);
+    
+    document.getElementById("soloUploadBtn").addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.type = "file"; input.accept = "image/*";
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = 800; canvas.height = 800;
+                const ctx = canvas.getContext("2d");
+                const size = Math.min(img.width, img.height);
+                ctx.drawImage(img, (img.width-size)/2, (img.height-size)/2, size, size, 0, 0, 800, 800);
+                soloPuzzleImageUrl = canvas.toDataURL();
+                const shuffled = shuffleFromSolved(currentSize, 200);
+                soloTiles = shuffled.tiles;
+                soloEmptyPos = shuffled.emptyPos;
+                soloSteps = 0; soloSeconds = 0; soloGameFinished = false;
+                document.getElementById("soloSteps").innerText = "0";
+                document.getElementById("soloTimer").innerText = "0";
+                document.getElementById("soloWinMessage").style.display = "none";
+                renderPuzzleCommon(document.getElementById("soloPuzzleGrid"), soloTiles, soloEmptyPos, soloGameFinished, soloPuzzleImageUrl, currentSize);
+            };
+            img.src = url;
+        };
+        input.click();
+    });
+    
+    // 模式切换
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById("soloArea").style.display = mode === "solo" ? "block" : "none";
+        document.getElementById("duoSetterArea").style.display = mode === "duo" ? "block" : "none";
+        document.getElementById("duoSolverArea").style.display = mode === "duo" ? "block" : "none";
+        if(mode === "duo") {
+            document.getElementById("duoSolverArea").style.display = "block";
+            document.getElementById("inviteResultArea").style.display = "none";
+        }
+    }
+    
+    document.querySelectorAll(".mode-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const mode = btn.getAttribute("data-mode");
+            if(mode === "solo") {
+                switchMode("solo");
+                initSoloDefault();
+            } else {
+                switchMode("duo");
+            }
+        });
+    });
+    
+    document.querySelectorAll(".size-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".size-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentSize = parseInt(btn.getAttribute("data-size"));
+            if(currentMode === "solo") {
+                const shuffled = shuffleFromSolved(currentSize, 200);
+                soloTiles = shuffled.tiles;
+                soloEmptyPos = shuffled.emptyPos;
+                soloSteps = 0; soloSeconds = 0; soloGameFinished = false;
+                document.getElementById("soloSteps").innerText = "0";
+                document.getElementById("soloTimer").innerText = "0";
+                document.getElementById("soloWinMessage").style.display = "none";
+                renderPuzzleCommon(document.getElementById("soloPuzzleGrid"), soloTiles, soloEmptyPos, soloGameFinished, soloPuzzleImageUrl, currentSize);
+            }
+        });
+    });
+    
+    initSoloDefault();
+    switchMode("solo");
+</script>
+</body>
+</html>
