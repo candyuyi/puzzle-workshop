@@ -369,10 +369,10 @@
 </div>
 
 <script>
-    // ========== Supabase 配置 ==========
-    const SUPABASE_URL = "https://dppogfleedepekgedvspj.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwcG9nZmxlZWRlcGVrZ2VkdnNwaiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzQ4NTQ0OTYxLCJleHAiOjIwNjQxMjA5NjF9";
-    // ====================================
+    // ========== JSONBin 配置（新创建的 Public Bin） ==========
+    const BIN_ID = "6a19d6dfddf5aa59f7759142";
+    const MASTER_KEY = "$2a$10$dtSM8ebybtbcyjVqYYwR6R.haeETwPIu.g03jDYgBkb4TwQC7XkRuG";
+    // =======================================================
 
     let currentLang = "zh";
     const langToggle = document.getElementById("langToggle");
@@ -387,26 +387,31 @@
     let currentMode = "solo";
     let currentSize = 3;
 
-    // ==================== Supabase 存储函数 ====================
+    // ==================== JSONBin 存储函数 ====================
     async function savePuzzleToCloud(code, puzzleData) {
         try {
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/puzzles`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "apikey": SUPABASE_ANON_KEY,
-                    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-                },
-                body: JSON.stringify({
-                    code: code,
-                    image_url: puzzleData.imageUrl,
-                    size: puzzleData.size
-                })
+            // 1. 读取现有数据
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { "X-Master-Key": MASTER_KEY }
             });
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("保存失败:", response.status, errorText);
-                alert(currentLang === "zh" ? `保存失败: ${response.status}` : `Save failed: ${response.status}`);
+            const data = await res.json();
+            const allPuzzles = data.record?.puzzles || {};
+            allPuzzles[code] = puzzleData;
+            
+            // 2. 保存
+            const saveRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: "PUT",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "X-Master-Key": MASTER_KEY
+                },
+                body: JSON.stringify({ puzzles: allPuzzles })
+            });
+            
+            if (!saveRes.ok) {
+                const errorText = await saveRes.text();
+                console.error("保存失败:", saveRes.status, errorText);
+                alert(currentLang === "zh" ? `保存失败: ${saveRes.status}` : `Save failed: ${saveRes.status}`);
                 return false;
             }
             return true;
@@ -419,25 +424,16 @@
     
     async function loadPuzzleFromCloud(code) {
         try {
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/puzzles?code=eq.${code}&select=*`, {
-                headers: {
-                    "apikey": SUPABASE_ANON_KEY,
-                    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-                }
-            });
-            if (!response.ok) {
-                console.error("读取失败:", response.status);
-                alert(currentLang === "zh" ? `读取失败: ${response.status}` : `Load failed: ${response.status}`);
+            // Public bin 读取不需要 Key
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`);
+            if (!res.ok) {
+                console.error("读取失败:", res.status);
+                alert(currentLang === "zh" ? `读取失败: ${res.status}` : `Load failed: ${res.status}`);
                 return null;
             }
-            const data = await response.json();
-            if (data && data.length > 0) {
-                return {
-                    imageUrl: data[0].image_url,
-                    size: data[0].size
-                };
-            }
-            return null;
+            const data = await res.json();
+            console.log("读取数据:", data);
+            return data.record?.puzzles?.[code] || null;
         } catch (error) {
             console.error("加载失败:", error);
             alert(currentLang === "zh" ? "加载失败，请检查网络" : "Load failed");
@@ -445,7 +441,7 @@
         }
     }
 
-    // ==================== 单人模式代码 ====================
+    // ==================== 单人模式 ====================
     let soloTiles = [], soloEmptyPos = 0, soloSteps = 0, soloSeconds = 0, soloGameFinished = false, soloTimerInterval = null, soloPuzzleImageUrl = null;
     
     function getSolvedTiles(sizeVal) {
