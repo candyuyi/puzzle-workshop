@@ -272,8 +272,8 @@
         <button class="lang-btn" id="langToggle">English</button>
     </div>
     <h1>✨ Puzzle Workshop ✨</h1>
-    <div class="sub lang-zh">🎯 单人：自己玩 | 👥 双人：出题/解题 + 自定义邀请码</div>
-    <div class="sub lang-en">🎯 Solo: play alone | 👥 Duo: create/share puzzles with custom code</div>
+    <div class="sub lang-zh">🎯 单人：自己玩 | 👥 双人：出题/解题 + 邀请码</div>
+    <div class="sub lang-en">🎯 Solo: play alone | 👥 Duo: create/share puzzles with invite code</div>
 
     <!-- 双人模式：出题区域 -->
     <div id="duoSetterArea" style="display: none;">
@@ -305,8 +305,8 @@
                 <button id="copyCodeBtn">📋 <span class="lang-zh">复制邀请码</span><span class="lang-en">Copy</span></button>
             </div>
             <div style="margin-top: 12px; font-size:0.7rem; color:#aaa;">
-                <span class="lang-zh">💡 把邀请码发给对方，对方在双人模式点击「解题」即可</span>
-                <span class="lang-en">💡 Share the code with your partner</span>
+                <span class="lang-zh">💡 把邀请码发给对方，对方在双人模式输入即可解题</span>
+                <span class="lang-en">💡 Share the code with your partner, they enter it in Duo mode to solve</span>
             </div>
         </div>
     </div>
@@ -364,17 +364,16 @@
         </div>
     </div>
 
-    <footer class="lang-zh">💡 单人模式：随意上传图片玩 | 双人模式：出题→自定义邀请码→对方解题</footer>
-    <footer class="lang-en">💡 Solo: play with any image | Duo: create puzzle → share code → partner solves</footer>
+    <footer class="lang-zh">💡 单人模式随意玩 | 双人模式：出题生成邀请码 → 对方输入邀请码解题</footer>
+    <footer class="lang-en">💡 Solo: play any image | Duo: create puzzle with code → partner enters code to solve</footer>
 </div>
 
 <script>
-    // ========== JSONBin 配置（已填好） ==========
-    const BIN_ID = "6a19c9ff21f9ee59d29ac498";
-    const API_KEY = "$2a$10$t0jKJJuys0R9HPKqHJo7.jc9pGhrQnk6bgeJayZiHoxNVbIrph6u";
-    // =================================================
-    
-    // ---------- 语言 ----------
+    // ========== 使用你最新的 Public Bin ==========
+    const BIN_ID = "6a19cd78ddf5aa59f7756ccd";   // 最新的 Bin ID
+    const MASTER_KEY = "$2a$10$t0jKJJuys0R9HPKqHJo7.jc9pGhrQnk6bgeJayZiHoxNVbIrph6u";  // 写入需要 Key
+    // ============================================
+
     let currentLang = "zh";
     const langToggle = document.getElementById("langToggle");
     function setLanguage(lang) {
@@ -385,24 +384,25 @@
     langToggle.addEventListener("click", () => setLanguage(currentLang === "zh" ? "en" : "zh"));
     setLanguage("zh");
 
-    // ---------- 全局变量 ----------
     let currentMode = "solo";
     let currentSize = 3;
-    
-    // ==================== JSONBin 云存储函数 ====================
+
+    // ==================== JSONBin 存储函数 ====================
     async function savePuzzleToCloud(code, puzzleData) {
         try {
+            // 读取现有数据
             const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { "X-Master-Key": API_KEY }
+                headers: { "X-Master-Key": MASTER_KEY }
             });
             const data = await res.json();
             const allPuzzles = data.record?.puzzles || {};
             allPuzzles[code] = puzzleData;
+            // 保存
             await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
                 method: "PUT",
                 headers: { 
                     "Content-Type": "application/json",
-                    "X-Master-Key": API_KEY
+                    "X-Master-Key": MASTER_KEY
                 },
                 body: JSON.stringify({ puzzles: allPuzzles })
             });
@@ -416,10 +416,10 @@
     
     async function loadPuzzleFromCloud(code) {
         try {
-            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { "X-Master-Key": API_KEY }
-            });
+            // Public bin 读取不需要 Key
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`);
             const data = await res.json();
+            console.log("读取数据:", data);
             return data.record?.puzzles?.[code] || null;
         } catch (error) {
             console.error("加载失败:", error);
@@ -427,8 +427,8 @@
             return null;
         }
     }
-    
-    // ==================== 单人模式 ====================
+
+    // ==================== 单人模式代码 ====================
     let soloTiles = [], soloEmptyPos = 0, soloSteps = 0, soloSeconds = 0, soloGameFinished = false, soloTimerInterval = null, soloPuzzleImageUrl = null;
     
     function getSolvedTiles(sizeVal) {
